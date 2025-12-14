@@ -1,0 +1,31 @@
+/* Frontend/src/index.css */
+:root {
+  --primary: #111; /* Black */
+  --accent: #007bff; /* Blue */
+  --bg-color: #f4f6f8; /* Light Gray */
+  --text-color: #333;
+  --sidebar-width: 260px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  height: 100vh;
+  overflow: hidden; /* Prevents double scrollbars */
+}
+
+button {
+  transition: all 0.2s ease-in-out;
+}
+
+button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
