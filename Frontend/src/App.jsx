@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage'; // Import RegisterPage
 import WelcomePage from './pages/WelcomePage';
 import MarketPage from './pages/MarketPage';
 import HistoryPage from './pages/HistoryPage';
@@ -10,8 +11,9 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Public Route */}
+        {/* Public Routes */}
         <Route path="/" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} /> {/* Add Register Route */}
 
         {/* --- USER ROUTES --- */}
         {/* Any user (User or Admin) can see these */}

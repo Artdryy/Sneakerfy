@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FaCog, FaTimes, FaCamera, FaSignOutAlt, FaSave } from 'react-icons/fa';
+import { FaCog, FaTimes, FaCamera, FaSignOutAlt, FaSave, FaArrowLeft } from 'react-icons/fa';
 import axios from '../api/axios';
 import styles from './ProfileModal.module.css';
 
@@ -26,6 +26,13 @@ const ProfileModal = ({ isOpen, onClose, user, onUpdateUser }) => {
             setSelectedFile(null); // Reset file selection
         }
     }, [user, isOpen]);
+
+    // Reset editing state when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            setIsEditing(false);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -94,7 +101,14 @@ const ProfileModal = ({ isOpen, onClose, user, onUpdateUser }) => {
         <div className={styles.modalOverlay}>
             {/* Header */}
             <div className={styles.header}>
-                <h3 className={styles.headerTitle}>{isEditing ? 'Edit Profile' : 'My Account'}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {isEditing && (
+                        <button onClick={() => setIsEditing(false)} className={styles.iconBtn}>
+                            <FaArrowLeft />
+                        </button>
+                    )}
+                    <h3 className={styles.headerTitle}>{isEditing ? 'Edit Profile' : 'My Account'}</h3>
+                </div>
                 <div>
                     {!isEditing && (
                         <button onClick={() => setIsEditing(true)} className={styles.iconBtn}>
@@ -122,7 +136,7 @@ const ProfileModal = ({ isOpen, onClose, user, onUpdateUser }) => {
                     )}
                     
                     <p style={{marginTop: '10px', fontWeight: 'bold'}}>{user?.username}</p>
-                    <p style={{fontSize: '0.9rem', color: 'gold'}}>Score: {user?.sellerScore || 0} ★</p>
+                    {/* Score removed from here */}
                 </div>
 
                 {isEditing ? (

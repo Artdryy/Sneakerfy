@@ -3,31 +3,27 @@ const User = require('../models/User');
 // --- GET USER PROFILE ---
 exports.getUserProfile = async (req, res) => {
   try {
-    // req.user.id comes from the verifyToken middleware
-    const user = await User.findById(req.user.id).select('-password'); // Exclude password
-    
+    const user = await User.findById(req.user.id).select('-password');
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-
     res.json(user);
   } catch (error) {
+    console.error("Get Profile Error:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
 
+// --- UPDATE USER PROFILE ---
 exports.updateProfile = async (req, res) => {
   try {
-    // req.body now only contains text fields because Multer separates the file
     const { fullname, phoneNumber, country, state, city, address, postalCode } = req.body;
     
     let updateData = { 
       fullname, phoneNumber, country, state, city, address, postalCode 
     };
 
-    // If a file was uploaded (req.file exists), we update the profilePicture path
     if (req.file) {
-      // The path to the image is now the public URL the frontend can access
       updateData.profilePicture = `http://localhost:5000/profilepic/${req.file.filename}`;
     }
 
@@ -38,7 +34,54 @@ exports.updateProfile = async (req, res) => {
     ).select('-password');
 
     res.json(updatedUser);
+
   } catch (error) {
+    console.error("Update Profile Error:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+// --- RATE USER ---
+exports.rateUser = async (req, res) => {
+  try {
+    const { targetUserId, score } = req.body;
+    const raterId = req.user.id;
+
+    if (score < 1 || score > 5) {
+      return res.status(400).json({ message: "Score must be between 1 and 5" });
+    }
+
+    if (targetUserId === raterId) {
+      return res.status(400).json({ message: "You cannot rate yourself" });
+    }
+
+    const targetUser = await User.findById(targetUserId);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User to rate not found" });
+    }
+
+    // Check if user already rated
+    const existingRatingIndex = targetUser.ratings.findIndex(
+      (rating) => rating.userId.toString() === raterId
+    );
+
+    if (existingRatingIndex !== -1) {
+      return res.status(400).json({ message: "You have already rated this user" });
+    }
+
+    // Add new rating
+    targetUser.ratings.push({ userId: raterId, score });
+
+    // Calculate new average
+    const totalScore = targetUser.ratings.reduce((sum, r) => sum + r.score, 0);
+    targetUser.sellerScore = parseFloat((totalScore / targetUser.ratings.length).toFixed(1));
+
+    await targetUser.save();
+
+    res.json({ message: "Rating added successfully", newScore: targetUser.sellerScore });
+
+  } catch (error) {
+    console.error("Rate User Error:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };

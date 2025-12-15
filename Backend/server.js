@@ -69,6 +69,8 @@ mongoose.connect(process.env.MONGO_URI)
 // --- ROUTES ---
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes')); // <--- ADD THIS LINE BACK
+app.use('/api/sneakers', require('./routes/sneakerRoutes')); // New
+app.use('/api/messages', require('./routes/messageRoutes')); // New
 
 // Start Server
 app.listen(PORT, () => {
