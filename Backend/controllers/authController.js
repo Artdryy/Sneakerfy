@@ -150,6 +150,20 @@ exports.login = async (req, res) => {
         } 
     });
 
+    // Set a secure cookie for cross-site usage (SameSite=None requires Secure)
+    // Use the __Secure- prefix per cookie prefix rules - requires Secure flag
+    try {
+      res.cookie('__Secure-YEC', token, {
+        httpOnly: true,
+        secure: true, // ensure HTTPS in production; Chrome allows secure on localhost
+        sameSite: 'None',
+        maxAge: 2 * 60 * 60 * 1000 // 2 hours
+      });
+    } catch (err) {
+      // Don't block login if cookie can't be set (e.g., insecure env)
+      console.warn('Could not set auth cookie:', err.message);
+    }
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

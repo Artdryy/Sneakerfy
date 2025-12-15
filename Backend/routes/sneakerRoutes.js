@@ -43,7 +43,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 // Ensure this import matches the file name EXACTLY (case-sensitive)
-const { createSneaker, getAllSneakers, getSneakerById, deleteSneaker, addComment, markAsSold, getSoldSneakers } = require('../controllers/SneakerController');
+const { createSneaker, getAllSneakers, getSneakerById, deleteSneaker, addComment, markAsSold, getSoldSneakers } = require('../controllers/sneakerController');
 const { verifyToken } = require('../middleware/authMiddleware');
 
 // --- MULTER CONFIGURATION FOR SNEAKERS ---
@@ -51,6 +51,7 @@ const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     // Ensure Backend/src/sneakerpic exists
     cb(null, 'src/sneakerpic/');
+    
   },
   filename: function (req, file, cb) {
     cb(null, 'sneaker_' + Date.now() + '_' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));

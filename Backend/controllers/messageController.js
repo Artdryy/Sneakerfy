@@ -1,6 +1,6 @@
 const Message = require('../models/Message');
 const User = require('../models/User');
-const mongoose = require('mongoose');
+const mongoose = require('mongoose'); // Ensure mongoose is imported
 
 // --- SEND MESSAGE ---
 exports.sendMessage = async (req, res) => {

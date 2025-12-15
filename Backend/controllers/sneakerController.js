@@ -1,94 +1,99 @@
-const Message = require('../models/Message');
-const User = require('../models/User');
-const mongoose = require('mongoose');
+const Sneaker = require('../models/Sneaker');
 
-// --- SEND MESSAGE ---
-exports.sendMessage = async (req, res) => {
+exports.createSneaker = async (req, res) => {
   try {
-    const { recipientId, content, sneakerId } = req.body;
-    
-    const newMessage = new Message({
-      sender: req.user.id,
-      recipient: recipientId,
-      content,
-      sneaker: sneakerId || null
+    const { brand, model, size, price, condition, description } = req.body;
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      imageUrls = req.files.map(file => `http://localhost:5000/sneakerpic/${file.filename}`);
+    }
+    const newSneaker = new Sneaker({
+      seller: req.user.id,
+      brand, model, size, price, condition, description, images: imageUrls
     });
-
-    await newMessage.save();
-    res.status(201).json(newMessage);
-
+    await newSneaker.save();
+    res.status(201).json(newSneaker);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
 
-// --- GET CONVERSATION ---
-exports.getConversation = async (req, res) => {
+exports.getAllSneakers = async (req, res) => {
   try {
-    const { otherUserId } = req.params;
-    const currentUserId = req.user.id;
-
-    const messages = await Message.find({
-      $or: [
-        { sender: currentUserId, recipient: otherUserId },
-        { sender: otherUserId, recipient: currentUserId }
-      ]
-    }).sort({ createdAt: 1 });
-
-    res.json(messages);
-
+    const sneakers = await Sneaker.find({ status: 'Available' })
+      .populate('seller', 'username sellerScore profilePicture')
+      .sort({ createdAt: -1 });
+    res.json(sneakers);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
 
-// --- GET INBOX (List of conversations) ---
-exports.getInbox = async (req, res) => {
-    try {
-        const currentUserId = req.user.id;
-        
-        // Find distinct users I have sent messages to OR received messages from
-        const conversations = await Message.aggregate([
-            {
-                $match: {
-                    $or: [
-                        { sender: new mongoose.Types.ObjectId(currentUserId) }, 
-                        { recipient: new mongoose.Types.ObjectId(currentUserId) }
-                    ]
-                }
-            },
-            { $sort: { createdAt: -1 } },
-            {
-                $group: {
-                    _id: {
-                        $cond: [
-                            { $eq: ["$sender", new mongoose.Types.ObjectId(currentUserId)] },
-                            "$recipient",
-                            "$sender"
-                        ]
-                    },
-                    lastMessage: { $first: "$$ROOT" }
-                }
-            },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: '_id',
-                    foreignField: '_id',
-                    as: 'contactInfo'
-                }
-            },
-            {
-                $project: {
-                    contactInfo: { $arrayElemAt: ["$contactInfo", 0] },
-                    lastMessage: 1
-                }
-            }
-        ]);
+exports.getSneakerById = async (req, res) => {
+  try {
+    const sneaker = await Sneaker.findById(req.params.id)
+      .populate('seller', 'username sellerScore profilePicture fullname')
+      .populate('comments.user', 'username profilePicture'); 
+    if (!sneaker) return res.status(404).json({ message: "Sneaker not found" });
+    res.json(sneaker);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
 
-        res.json(conversations);
+exports.deleteSneaker = async (req, res) => {
+  try {
+    const sneaker = await Sneaker.findById(req.params.id);
+    if (!sneaker) return res.status(404).json({ message: "Sneaker not found" });
+    if (sneaker.seller.toString() !== req.user.id) {
+        return res.status(401).json({ message: "Not authorized" });
+    }
+    await sneaker.deleteOne();
+    res.json({ message: "Sneaker removed" });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+exports.addComment = async (req, res) => {
+  try {
+    const { text } = req.body;
+    const sneaker = await Sneaker.findById(req.params.id);
+    if (!sneaker) return res.status(404).json({ message: "Sneaker not found" });
+    const newComment = { user: req.user.id, text };
+    sneaker.comments.unshift(newComment);
+    await sneaker.save();
+    const updatedSneaker = await Sneaker.findById(req.params.id)
+        .populate('comments.user', 'username profilePicture');
+    res.json(updatedSneaker.comments);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+exports.markAsSold = async (req, res) => {
+    try {
+        const sneaker = await Sneaker.findById(req.params.id);
+        if (!sneaker) return res.status(404).json({ message: "Sneaker not found" });
+        if (sneaker.seller.toString() !== req.user.id) {
+            return res.status(401).json({ message: "Not authorized" });
+        }
+        sneaker.status = 'Sold';
+        await sneaker.save();
+        res.json({ message: "Sneaker marked as sold", sneaker });
     } catch (error) {
-        console.error(error);
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+};
+
+exports.getSoldSneakers = async (req, res) => {
+    try {
+        // Find ALL sold sneakers (Global History)
+        const sneakers = await Sneaker.find({ status: 'Sold' })
+            .populate('seller', 'username sellerScore profilePicture')
+            .sort({ createdAt: -1 });
+        res.json(sneakers);
+    } catch (error) {
         res.status(500).json({ message: "Server Error", error: error.message });
     }
 };
