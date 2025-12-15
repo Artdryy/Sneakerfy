@@ -15,18 +15,26 @@ const transporter = nodemailer.createTransport({
 
 // Helper function to send email
 const sendVerificationEmail = async (email, code) => {
+  // ALWAYS Log the code to console for development/testing
+  console.log(`[VERIFICATION CODE] To: ${email} | Code: ${code}`);
+
   try {
-     await transporter.sendMail({
-      from: '"Sneakerfy" <no-reply@sneakerfy.com>',
-      to: email, 
-      subject: "Your Verification Code",
-      text: `Your code is: ${code}`,
-      html: `<b>Your code is: ${code}</b>`
-    });
-    
-    console.log(`[EMAIL SIMULATION] To: ${email}, Code: ${code}`);
+    // Only attempt to send if credentials exist, otherwise skip to avoid timeout/errors
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        await transporter.sendMail({
+          from: '"Sneakerfy" <no-reply@sneakerfy.com>',
+          to: email, 
+          subject: "Your Verification Code",
+          text: `Your code is: ${code}`,
+          html: `<b>Your code is: ${code}</b>`
+        });
+        console.log(`[EMAIL SENT] Successfully sent to ${email}`);
+    } else {
+        console.log(`[EMAIL SKIPPED] Missing env variables. Using console log only.`);
+    }
   } catch (error) {
-    console.error("Email error:", error);
+    console.error("Email sending failed (Code is still valid in console):", error.message);
+    // We do NOT throw here, so the registration flow completes even if email fails.
   }
 };
 
@@ -34,7 +42,7 @@ const sendVerificationEmail = async (email, code) => {
 exports.register = async (req, res) => {
   try {
     const { 
-        username, email, password, fullname, phoneNumber, // Added email
+        username, email, password, fullname, phoneNumber, 
         country, state, city, address, postalCode 
     } = req.body;
 
@@ -47,11 +55,11 @@ exports.register = async (req, res) => {
 
     // Generate Code
     const code = crypto.randomInt(100000, 999999).toString();
-    const expiration = new Date(Date.now() + 24 * 60 * 60 * 1000); 
+    const expiration = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     const newUser = new User({
       username,
-      email, // Save email
+      email, 
       password: hashedPassword,
       fullname,
       phoneNumber,
@@ -64,10 +72,10 @@ exports.register = async (req, res) => {
 
     await newUser.save();
     
-    // Send Email to the REAL email address now
+    // Send Email (or log it)
     await sendVerificationEmail(email, code);
 
-    res.status(201).json({ message: "User registered. Please check your email for the verification code." });
+    res.status(201).json({ message: "User registered. Please check your email (or console) for the verification code." });
 
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -79,7 +87,7 @@ exports.verifyEmail = async (req, res) => {
   try {
     const { username, code } = req.body;
     
-    // Find user by username
+    // Find user by username AND code AND valid expiration
     const user = await User.findOne({ 
       username,
       verificationCode: code,
@@ -90,6 +98,7 @@ exports.verifyEmail = async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired code" });
     }
 
+    // Mark as verified and clear the code
     user.isVerified = true;
     user.verificationCode = undefined;
     user.verificationCodeExpires = undefined;
@@ -110,6 +119,7 @@ exports.login = async (req, res) => {
     
     if (!user) return res.status(404).json({ message: "User not found" });
 
+    // Enable verification check
     if (!user.isVerified) {
         return res.status(403).json({ message: "Please verify your account first." });
     }
@@ -158,8 +168,9 @@ exports.forgotPassword = async (req, res) => {
     user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    // Send code to user's registered email
-    console.log(`[SIMULATION] Reset Code for ${username} (${user.email}): ${code}`);
+    // Use shared email function
+    await sendVerificationEmail(user.email, code);
+    
     res.json({ message: "Reset code sent" });
 
   } catch (error) {

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login } = require('../controllers/authController');
+const { register, login, verifyEmail } = require('../controllers/authController');
 
 /**
  * @swagger
@@ -106,5 +106,31 @@ router.post('/register', register);
  * description: Invalid credentials
  */
 router.post('/login', login);
+
+
+/**
+ * @swagger
+ * /api/auth/verify-email:
+ *   post:
+ *     summary: Verify account with code
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Verified successfully
+ *       400:
+ *         description: Invalid code
+ */
+router.post('/verify-email', verifyEmail);
 
 module.exports = router;

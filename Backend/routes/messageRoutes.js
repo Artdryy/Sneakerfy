@@ -60,4 +60,25 @@ router.post('/', verifyToken, sendMessage);
  */
 router.get('/:otherUserId', verifyToken, getConversation);
 
+/**
+ * @swagger
+ * /api/messages/{otherUserId}:
+ *   get:
+ *     summary: Get conversation with a specific user
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: otherUserId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of messages
+ */
+
+router.get('/:otherUserId', verifyToken, getConversation);
+
 module.exports = router;

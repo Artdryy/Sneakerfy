@@ -43,7 +43,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 // Ensure this import matches the file name EXACTLY (case-sensitive)
-const { createSneaker, getAllSneakers, getSneakerById, deleteSneaker } = require('../controllers/SneakerController');
+const { createSneaker, getAllSneakers, getSneakerById, deleteSneaker, addComment, markAsSold, getSoldSneakers } = require('../controllers/SneakerController');
 const { verifyToken } = require('../middleware/authMiddleware');
 
 // --- MULTER CONFIGURATION FOR SNEAKERS ---
@@ -76,6 +76,27 @@ const upload = multer({ storage: storage });
  *                 $ref: '#/components/schemas/Sneaker'
  */
 router.get('/', getAllSneakers);
+
+/**
+ * @swagger
+ * /api/sneakers/sold:
+ *    get:
+ *    summary: Get sold sneakers for current user
+ *    tags: [Sneakers]
+ *    security:
+ *      - bearerAuth: []
+ *    responses:
+ *      200:
+ *        description: List of sold sneakers
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: array
+ *              items:
+ *                $ref: '#/components/schemas/Sneaker'
+ */
+// CRITICAL: This MUST be defined BEFORE /:id
+router.get('/sold', verifyToken, getSoldSneakers); 
 
 /**
  * @swagger
@@ -172,5 +193,62 @@ router.post('/', verifyToken, upload.array('images', 5), createSneaker);
  *         description: Sneaker not found
  */
 router.delete('/:id', verifyToken, deleteSneaker);
+
+/**
+ * @swagger
+ * /api/sneakers/{id}/comments:
+ *    post:
+ *      summary: Add a comment to a sneaker
+ *      tags: [Sneakers]
+ *      security:
+ *        - bearerAuth: []
+ *      parameters:
+ *        - in: path
+ *          name: id
+ *          required: true
+ *          schema:
+ *            type: string
+ *      requestBody:
+ *        required: true
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                text:
+ *                  type: string
+ *              required:
+ *                - text
+ *      responses:
+ *        200:
+ *          description: Comment added
+ *        404:
+ *          description: Sneaker not found
+ */
+router.post('/:id/comments', verifyToken, addComment);
+
+/**
+ * @swagger
+ * /api/sneakers/{id}/sold:
+ *    put:
+ *    summary: Mark a sneaker as sold
+ *    tags: [Sneakers]
+ *    security:
+ *      - bearerAuth: []
+ *    parameters:
+ *      - in: path
+ *        name: id
+ *        required: true
+ *        schema:
+ *          type: string
+ *    responses:
+ *      200:
+ *        description: Sneaker marked as sold
+ *      401:
+ *        description: Unauthorized
+ *      404:
+ *        description: Sneaker not found
+ */
+router.put('/:id/sold', verifyToken, markAsSold);
 
 module.exports = router;

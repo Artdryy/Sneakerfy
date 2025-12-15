@@ -1,80 +1,94 @@
-const Sneaker = require('../models/Sneaker');
+const Message = require('../models/Message');
+const User = require('../models/User');
+const mongoose = require('mongoose');
 
-// --- CREATE SNEAKER ---
-exports.createSneaker = async (req, res) => {
+// --- SEND MESSAGE ---
+exports.sendMessage = async (req, res) => {
   try {
-    const { brand, model, size, price, condition, description } = req.body;
+    const { recipientId, content, sneakerId } = req.body;
     
-    // Process uploaded files
-    let imageUrls = [];
-    if (req.files && req.files.length > 0) {
-      imageUrls = req.files.map(file => `http://localhost:5000/sneakerpic/${file.filename}`);
-    }
-
-    const newSneaker = new Sneaker({
-      seller: req.user.id,
-      brand,
-      model,
-      size,
-      price,
-      condition,
-      description,
-      images: imageUrls
+    const newMessage = new Message({
+      sender: req.user.id,
+      recipient: recipientId,
+      content,
+      sneaker: sneakerId || null
     });
 
-    await newSneaker.save();
-    res.status(201).json(newSneaker);
+    await newMessage.save();
+    res.status(201).json(newMessage);
 
-  } catch (error) {
-    console.error("Create Sneaker Error:", error);
-    res.status(500).json({ message: "Server Error", error: error.message });
-  }
-};
-
-// --- GET ALL SNEAKERS ---
-exports.getAllSneakers = async (req, res) => {
-  try {
-    // Populate seller info (username, rating) so we can show it on the card
-    const sneakers = await Sneaker.find({ status: 'Available' })
-      .populate('seller', 'username sellerScore profilePicture')
-      .sort({ createdAt: -1 });
-      
-    res.json(sneakers);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
 
-// --- GET SINGLE SNEAKER ---
-exports.getSneakerById = async (req, res) => {
+// --- GET CONVERSATION ---
+exports.getConversation = async (req, res) => {
   try {
-    const sneaker = await Sneaker.findById(req.params.id)
-      .populate('seller', 'username sellerScore profilePicture fullname');
-      
-    if (!sneaker) return res.status(404).json({ message: "Sneaker not found" });
-    
-    res.json(sneaker);
+    const { otherUserId } = req.params;
+    const currentUserId = req.user.id;
+
+    const messages = await Message.find({
+      $or: [
+        { sender: currentUserId, recipient: otherUserId },
+        { sender: otherUserId, recipient: currentUserId }
+      ]
+    }).sort({ createdAt: 1 });
+
+    res.json(messages);
+
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
 
-// --- DELETE SNEAKER ---
-exports.deleteSneaker = async (req, res) => {
-  try {
-    const sneaker = await Sneaker.findById(req.params.id);
-    
-    if (!sneaker) return res.status(404).json({ message: "Sneaker not found" });
+// --- GET INBOX (List of conversations) ---
+exports.getInbox = async (req, res) => {
+    try {
+        const currentUserId = req.user.id;
+        
+        // Find distinct users I have sent messages to OR received messages from
+        const conversations = await Message.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { sender: new mongoose.Types.ObjectId(currentUserId) }, 
+                        { recipient: new mongoose.Types.ObjectId(currentUserId) }
+                    ]
+                }
+            },
+            { $sort: { createdAt: -1 } },
+            {
+                $group: {
+                    _id: {
+                        $cond: [
+                            { $eq: ["$sender", new mongoose.Types.ObjectId(currentUserId)] },
+                            "$recipient",
+                            "$sender"
+                        ]
+                    },
+                    lastMessage: { $first: "$$ROOT" }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'contactInfo'
+                }
+            },
+            {
+                $project: {
+                    contactInfo: { $arrayElemAt: ["$contactInfo", 0] },
+                    lastMessage: 1
+                }
+            }
+        ]);
 
-    // Ensure only the owner can delete
-    if (sneaker.seller.toString() !== req.user.id) {
-        return res.status(401).json({ message: "Not authorized" });
+        res.json(conversations);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server Error", error: error.message });
     }
-
-    await sneaker.deleteOne();
-    res.json({ message: "Sneaker removed" });
-
-  } catch (error) {
-    res.status(500).json({ message: "Server Error", error: error.message });
-  }
 };

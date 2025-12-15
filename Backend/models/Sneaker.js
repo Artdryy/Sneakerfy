@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 
+const commentSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  text: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+
 const sneakerSchema = new mongoose.Schema({
   seller: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -16,12 +22,13 @@ const sneakerSchema = new mongoose.Schema({
     required: true 
   },
   description: { type: String },
-  images: [{ type: String }], // Array of image URLs
+  images: [{ type: String }],
   status: { 
     type: String, 
     enum: ['Available', 'Sold', 'Pending'], 
     default: 'Available' 
   },
+  comments: [commentSchema], // Added comments array
   createdAt: { type: Date, default: Date.now }
 });
 
