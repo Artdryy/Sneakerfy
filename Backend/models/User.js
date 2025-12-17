@@ -37,6 +37,7 @@ const userSchema = new mongoose.Schema({
   
   // --- Account Verification ---
   isVerified: { type: Boolean, default: false },
+  isBanned: { type: Boolean, default: false }, // New Field
   verificationCode: { type: String },
   verificationCodeExpires: { type: Date },
 
